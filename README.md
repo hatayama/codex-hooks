@@ -28,11 +28,15 @@ CODEX_HOOKS_DISABLE=1 codex ...
 
 If `~/.codex/hooks.json` exists, it takes precedence. Otherwise, `codex-hooks` falls back to Claude's `settings.json`.
 
-## Codex Hooks Format
+## Example `~/.codex/hooks.json`
 
-`~/.codex/hooks.json` uses the same `hooks` structure as Claude:
+Create `~/.codex/hooks.json` like this:
 
-```json
+This example only uses built-in macOS commands so it works without any custom scripts:
+
+```sh
+mkdir -p ~/.codex
+cat > ~/.codex/hooks.json <<'EOF'
 {
   "hooks": {
     "TaskStarted": [
@@ -41,7 +45,7 @@ If `~/.codex/hooks.json` exists, it takes precedence. Otherwise, `codex-hooks` f
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/tab_title.py -t '⚡ Codex'"
+            "command": "osascript -e 'beep 1'"
           }
         ]
       }
@@ -52,7 +56,7 @@ If `~/.codex/hooks.json` exists, it takes precedence. Otherwise, `codex-hooks` f
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/notify.py -t 'done'"
+            "command": "osascript -e 'display notification \"Codex finished.\" with title \"codex-hooks\" sound name \"Glass\"'"
           }
         ]
       },
@@ -61,7 +65,7 @@ If `~/.codex/hooks.json` exists, it takes precedence. Otherwise, `codex-hooks` f
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/notify.py -t 'question'"
+            "command": "osascript -e 'display notification \"Codex is waiting for your reply.\" with title \"codex-hooks\" sound name \"Hero\"'"
           }
         ]
       }
@@ -72,7 +76,59 @@ If `~/.codex/hooks.json` exists, it takes precedence. Otherwise, `codex-hooks` f
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/notify.py -t 'aborted'"
+            "command": "osascript -e 'display notification \"The Codex turn was aborted.\" with title \"codex-hooks\" sound name \"Basso\"'"
+          }
+        ]
+      }
+    ]
+  }
+}
+EOF
+```
+
+The file uses the same `hooks` structure as Claude:
+
+```json
+{
+  "hooks": {
+    "TaskStarted": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "osascript -e 'beep 1'"
+          }
+        ]
+      }
+    ],
+    "TaskComplete": [
+      {
+        "matcher": "done",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "osascript -e 'display notification \"Codex finished.\" with title \"codex-hooks\" sound name \"Glass\"'"
+          }
+        ]
+      },
+      {
+        "matcher": "ask",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "osascript -e 'display notification \"Codex is waiting for your reply.\" with title \"codex-hooks\" sound name \"Hero\"'"
+          }
+        ]
+      }
+    ],
+    "TurnAborted": [
+      {
+        "matcher": "aborted",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "osascript -e 'display notification \"The Codex turn was aborted.\" with title \"codex-hooks\" sound name \"Basso\"'"
           }
         ]
       }
