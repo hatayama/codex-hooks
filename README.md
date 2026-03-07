@@ -1,8 +1,8 @@
 # codex-hooks
 
-Codex CLI の session JSONL を監視し、Claude Code 風の hooks を Codex でも再現する macOS 向けの Python ツール。
+`codex-hooks` is a macOS-focused Python tool that recreates Claude Code-style hooks for Codex by watching Codex session JSONL files.
 
-`codex-notify` のような通知やタブタイトル変更はこのリポジトリの責務に含めず、純粋に「いつ hook を発火するか」と「何の command を実行するか」だけを扱う。
+This repository intentionally stays focused on hook reproduction. It does not own UI features such as desktop notifications or terminal title updates. Its job is only to decide when hooks should fire and which commands should run.
 
 ## Install
 
@@ -13,9 +13,9 @@ python3 install.py
 source ~/.zshrc
 ```
 
-インストール後は `codex` シェル関数が追加され、実際の Codex CLI を起動しつつバックグラウンドで session monitor を立ち上げる。
+After installation, a `codex` shell function is added. It launches the real Codex CLI and starts a background session monitor at the same time.
 
-無効化したいときは:
+To disable the wrapper temporarily:
 
 ```sh
 CODEX_HOOKS_DISABLE=1 codex ...
@@ -26,11 +26,11 @@ CODEX_HOOKS_DISABLE=1 codex ...
 1. `~/.codex/hooks.json`
 2. `~/.claude/settings.json`
 
-`~/.codex/hooks.json` があればそれを優先し、無ければ Claude の `settings.json` をフォールバックとして使う。
+If `~/.codex/hooks.json` exists, it takes precedence. Otherwise, `codex-hooks` falls back to Claude's `settings.json`.
 
 ## Codex Hooks Format
 
-`~/.codex/hooks.json` は Claude と同じ `hooks` 構造を使う。
+`~/.codex/hooks.json` uses the same `hooks` structure as Claude:
 
 ```json
 {
@@ -92,7 +92,7 @@ CODEX_HOOKS_DISABLE=1 codex ...
 
 - Source: `event_msg.payload.type == "task_complete"`
 - Supported matcher: `""`, `done`, `ask`
-- `ask` は assistant の最終メッセージが質問文または番号付き選択肢で終わるとき
+- `ask` is used when the final assistant message ends with a question or numbered options
 
 ### `TurnAborted`
 
@@ -101,24 +101,20 @@ CODEX_HOOKS_DISABLE=1 codex ...
 
 ## Claude Fallback Mapping
 
-`~/.claude/settings.json` を使う場合は、次のルールで Codex イベントへ寄せる。
+When `~/.claude/settings.json` is used as the source, Claude events are mapped onto Codex events like this:
 
-- `Stop` hooks:
+- `Stop` hooks run on:
   - `TaskComplete`
   - `TurnAborted`
-- `Notification` hooks:
-  - `TaskComplete` の `ask` 完了時
-- `UserPromptSubmit`
-- `PreToolUse`
-- `PostToolUse`
-- `PermissionRequest`
-  - v1 では未対応
+- `Notification` hooks run on:
+  - `TaskComplete` with the `ask` matcher
+- `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, and `PermissionRequest` are not supported in v1
 
-`Notification` の既存 matcher は Codex に対応する値が無いため、フォールバック時は `ask` 扱いで実行する。
+Existing `Notification` matchers in Claude settings do not have a direct Codex equivalent, so they are treated as `ask` during fallback mapping.
 
 ## Hook stdin Payload
 
-各 hook command の stdin には JSON が渡る。
+Each hook command receives JSON on stdin:
 
 ```json
 {
@@ -127,7 +123,7 @@ CODEX_HOOKS_DISABLE=1 codex ...
   "session_path": "/Users/you/.codex/sessions/2026/03/07/session.jsonl",
   "cwd": "/Users/you/work/repo",
   "turn_id": "turn-12",
-  "assistant_message": "この方針で進めますか？",
+  "assistant_message": "Do you want me to continue?",
   "raw_event": {
     "type": "event_msg",
     "payload": {
@@ -139,11 +135,11 @@ CODEX_HOOKS_DISABLE=1 codex ...
 
 ## How It Works
 
-1. `codex` ラッパーが本物の Codex CLI を起動する
-2. 同時に monitor が `~/.codex/sessions/**/*.jsonl` を探索する
-3. `cwd` と起動時刻に一致する session file を選ぶ
-4. JSONL イベントを `TaskStarted` / `TaskComplete` / `TurnAborted` に正規化する
-5. 設定ファイルから対応する hook group を探し、`/bin/sh -lc` で command を実行する
+1. The `codex` wrapper launches the real Codex CLI.
+2. A background monitor discovers the matching file under `~/.codex/sessions/**/*.jsonl`.
+3. The monitor selects the session file that matches the current working directory and launch time.
+4. JSONL events are normalized into `TaskStarted`, `TaskComplete`, or `TurnAborted`.
+5. Matching hook groups are loaded from configuration and executed through `/bin/sh -lc`.
 
 ## Test
 
