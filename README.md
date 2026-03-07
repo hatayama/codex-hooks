@@ -1,83 +1,78 @@
 # codex-hooks
 
-[Claude Code](https://docs.anthropic.com/en/docs/claude-code) の hooks 設定 (`~/.claude/settings.json`) をそのまま再利用して、[Codex CLI](https://github.com/openai/codex) でも同じフックを実行できるようにする CLI / ライブラリ。
+Codex CLI の session JSONL を監視し、Claude Code 風の hooks を Codex でも再現する macOS 向けの Python ツール。
 
-## Background
-
-Claude Code にはエージェントのライフサイクルイベントに応じて任意のコマンドを実行できる **hooks** 機能がある。一方 Codex CLI には同等の機能がない。
-
-このツールは Claude Code の hooks 設定をそのまま読み取り、任意のタイミングで発火させることで、Codex でも同じ通知やタブタイトル変更などの体験を実現する。
+`codex-notify` のような通知やタブタイトル変更はこのリポジトリの責務に含めず、純粋に「いつ hook を発火するか」と「何の command を実行するか」だけを扱う。
 
 ## Install
 
 ```sh
-npm install -g codex-hooks
-```
-
-Or clone and link:
-
-```sh
 git clone https://github.com/hatayama/codex-hooks.git
 cd codex-hooks
-npm install && npm run build
-npm link
+python3 install.py
+source ~/.zshrc
 ```
 
-## Usage
+インストール後は `codex` シェル関数が追加され、実際の Codex CLI を起動しつつバックグラウンドで session monitor を立ち上げる。
 
-### CLI
+無効化したいときは:
 
 ```sh
-# Stop イベントを発火（matcher が空のグループすべてが実行される）
-codex-hooks fire Stop
-
-# matcher を指定して Notification イベントを発火
-codex-hooks fire Notification --matcher permission_prompt
-
-# stdin データをフックコマンドに渡す
-codex-hooks fire UserPromptSubmit --stdin '{"prompt":"hello"}'
-
-# 別の settings.json を指定
-codex-hooks fire Stop --config /path/to/settings.json
+CODEX_HOOKS_DISABLE=1 codex ...
 ```
 
-### Library
+## Configuration Priority
 
-```ts
-import { loadHooksConfig, fireEvent } from "codex-hooks";
+1. `~/.codex/hooks.json`
+2. `~/.claude/settings.json`
 
-const config = await loadHooksConfig();
-await fireEvent(config, "Stop");
-await fireEvent(config, "Notification", "permission_prompt");
-```
+`~/.codex/hooks.json` があればそれを優先し、無ければ Claude の `settings.json` をフォールバックとして使う。
 
-## How It Works
+## Codex Hooks Format
 
-### 1. 設定の読み込み
+`~/.codex/hooks.json` は Claude と同じ `hooks` 構造を使う。
 
-`~/.claude/settings.json` の `hooks` セクションを読む。フォーマットは Claude Code と完全に同一:
-
-```jsonc
+```json
 {
   "hooks": {
-    "Stop": [
+    "TaskStarted": [
       {
-        "matcher": "",           // 空文字 = 常にマッチ
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/tab_title.py -t '⚡ Codex'"
+          }
+        ]
+      }
+    ],
+    "TaskComplete": [
+      {
+        "matcher": "done",
         "hooks": [
           {
             "type": "command",
             "command": "~/.claude/hooks/notify.py -t 'done'"
           }
         ]
-      }
-    ],
-    "Notification": [
+      },
       {
-        "matcher": "permission_prompt",  // この値と一致した時だけ実行
+        "matcher": "ask",
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/notify.py -t 'need approval'"
+            "command": "~/.claude/hooks/notify.py -t 'question'"
+          }
+        ]
+      }
+    ],
+    "TurnAborted": [
+      {
+        "matcher": "aborted",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/notify.py -t 'aborted'"
           }
         ]
       }
@@ -86,72 +81,75 @@ await fireEvent(config, "Notification", "permission_prompt");
 }
 ```
 
-### 2. イベントのマッチング
+## Events and Matchers
 
-`codex-hooks fire <event> [--matcher <value>]` が呼ばれると:
+### `TaskStarted`
 
-1. 設定から `event` に対応するフックグループ一覧を取得
-2. 各グループの `matcher` をチェック:
-   - `matcher` が空文字 → 常にマッチ（すべての呼び出しで実行）
-   - `matcher` が非空 → `--matcher` で渡された値と完全一致する場合のみ実行
-3. マッチしたグループ内の `hooks` をすべて並列実行
+- Source: `event_msg.payload.type == "task_started"`
+- Supported matcher: `""`
 
-### 3. コマンドの実行
+### `TaskComplete`
 
-- `command` 文字列をスペースで分割し、`execFile` で実行
-- `~/` で始まるパスはホームディレクトリに展開
-- `--stdin` が指定されていれば、子プロセスの stdin にデータを書き込む
-- 失敗したコマンドは stderr にエラーを出力するが、他のフックの実行は止めない
+- Source: `event_msg.payload.type == "task_complete"`
+- Supported matcher: `""`, `done`, `ask`
+- `ask` は assistant の最終メッセージが質問文または番号付き選択肢で終わるとき
 
-### Architecture
+### `TurnAborted`
 
-```
-~/.claude/settings.json
-        │
-        │  loadHooksConfig()
-        ▼
-   ┌──────────┐
-   │  config   │  JSON parse → hooks セクション抽出
-   └────┬─────┘
-        │
-        │  fireEvent(config, event, matcher?, stdin?)
-        ▼
-   ┌──────────┐
-   │  runner   │  matcher 照合 → execFile で並列実行
-   └────┬─────┘
-        │
-        ▼
-   hook commands (notify.py, tab_title.py, etc.)
-```
+- Source: `event_msg.payload.type == "turn_aborted"`
+- Supported matcher: `""`, `aborted`
 
-## Supported Events
+## Claude Fallback Mapping
 
-Claude Code のイベント名をそのまま使える:
+`~/.claude/settings.json` を使う場合は、次のルールで Codex イベントへ寄せる。
 
-| Event | Description |
-|---|---|
-| `UserPromptSubmit` | ユーザーがプロンプトを送信した |
-| `PreToolUse` | ツール実行前 |
-| `PostToolUse` | ツール実行後 |
-| `Notification` | 通知イベント |
-| `Stop` | エージェントが停止した |
-| `PermissionRequest` | 権限リクエスト |
+- `Stop` hooks:
+  - `TaskComplete`
+  - `TurnAborted`
+- `Notification` hooks:
+  - `TaskComplete` の `ask` 完了時
+- `UserPromptSubmit`
+- `PreToolUse`
+- `PostToolUse`
+- `PermissionRequest`
+  - v1 では未対応
 
-イベント名は自由に追加可能。設定 JSON に書かれていればどんなイベント名でも動作する。
+`Notification` の既存 matcher は Codex に対応する値が無いため、フォールバック時は `ask` 扱いで実行する。
 
-## Integration with Codex
+## Hook stdin Payload
 
-Codex CLI のラッパーシェル関数から呼び出す例:
+各 hook command の stdin には JSON が渡る。
 
-```sh
-codex_with_hooks() {
-  codex-hooks fire UserPromptSubmit
-  codex "$@"
-  codex-hooks fire Stop
+```json
+{
+  "event_name": "TaskComplete",
+  "matched_matcher": "ask",
+  "session_path": "/Users/you/.codex/sessions/2026/03/07/session.jsonl",
+  "cwd": "/Users/you/work/repo",
+  "turn_id": "turn-12",
+  "assistant_message": "この方針で進めますか？",
+  "raw_event": {
+    "type": "event_msg",
+    "payload": {
+      "type": "task_complete"
+    }
+  }
 }
 ```
 
-より高度な統合（セッション監視による自動検出）は [codex-notify](https://github.com/hatayama/codex-notify) を参照。
+## How It Works
+
+1. `codex` ラッパーが本物の Codex CLI を起動する
+2. 同時に monitor が `~/.codex/sessions/**/*.jsonl` を探索する
+3. `cwd` と起動時刻に一致する session file を選ぶ
+4. JSONL イベントを `TaskStarted` / `TaskComplete` / `TurnAborted` に正規化する
+5. 設定ファイルから対応する hook group を探し、`/bin/sh -lc` で command を実行する
+
+## Test
+
+```sh
+python3 -m unittest
+```
 
 ## License
 
