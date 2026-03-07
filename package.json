@@ -1,0 +1,33 @@
+{
+  "name": "codex-hooks",
+  "version": "0.1.0",
+  "description": "Hooks runner for Codex CLI - reuses Claude Code hooks settings",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "codex-hooks": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "lint": "tsc --noEmit",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest"
+  },
+  "keywords": [
+    "codex",
+    "claude-code",
+    "hooks"
+  ],
+  "author": "hatayama <booqle@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hatayama/codex-hooks.git"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.13.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.0",
+    "typescript": "^5.7.0"
+  }
+}
