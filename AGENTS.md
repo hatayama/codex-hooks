@@ -1,0 +1,2 @@
+- Write all READMEs and commit messages in English.
+- Commit frequently after completing each task.
