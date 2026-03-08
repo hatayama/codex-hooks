@@ -44,8 +44,6 @@ VALUE_OPTIONS: set[str] = {
     "-p",
     "-s",
 }
-
-
 def resolve_codex_binary() -> str:
     binary_path: str | None = shutil.which("codex")
     if binary_path is None:
@@ -137,6 +135,18 @@ def spawn_monitor(
     )
 
 
+def wait_for_exit_without_interrupt_traceback(codex_process: subprocess.Popen[bytes]) -> int:
+    while True:
+        try:
+            return codex_process.wait()
+        except KeyboardInterrupt:
+            return_code: int | None = codex_process.poll()
+            if return_code is not None:
+                return return_code
+            # The terminal sends SIGINT to both wrapper and child. Looping here avoids
+            # printing a Python traceback while the child is already shutting down.
+
+
 def main() -> None:
     args: list[str] = sys.argv[1:]
     codex_binary: str = resolve_codex_binary()
@@ -161,4 +171,4 @@ def main() -> None:
         codex_pid=codex_process.pid,
         allow_resumed_fallback=allow_resumed_fallback,
     )
-    raise SystemExit(codex_process.wait())
+    raise SystemExit(wait_for_exit_without_interrupt_traceback(codex_process))
