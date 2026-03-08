@@ -53,7 +53,7 @@ class TestConfig(unittest.TestCase):
         self.assertNotIn("TurnAborted", config.hooks)
         self.assertEqual(config.hooks["TaskComplete"][0].hooks[0].command, "printf codex")
 
-    def test_maps_claude_stop_and_notification_hooks(self) -> None:
+    def test_maps_claude_hooks_to_task_started_complete_and_abort(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root: Path = Path(temp_dir)
             codex_path: Path = root / "missing-hooks.json"
@@ -63,6 +63,22 @@ class TestConfig(unittest.TestCase):
                 json.dumps(
                     {
                         "hooks": {
+                            "UserPromptSubmit": [
+                                {
+                                    "matcher": "",
+                                    "hooks": [
+                                        {"type": "command", "command": "printf on"}
+                                    ],
+                                }
+                            ],
+                            "PreToolUse": [
+                                {
+                                    "matcher": "",
+                                    "hooks": [
+                                        {"type": "command", "command": "printf on"}
+                                    ],
+                                }
+                            ],
                             "Stop": [
                                 {
                                     "matcher": "",
@@ -87,6 +103,8 @@ class TestConfig(unittest.TestCase):
             config = load_hooks_config(codex_hooks_path=codex_path, claude_settings_path=claude_path)
 
         self.assertEqual(config.source_kind, "claude")
+        self.assertEqual(len(config.hooks["TaskStarted"]), 1)
+        self.assertEqual(config.hooks["TaskStarted"][0].hooks[0].command, "printf on")
         self.assertEqual(len(config.hooks["TaskComplete"]), 2)
         self.assertEqual(config.hooks["TaskComplete"][0].matcher, "")
         self.assertEqual(config.hooks["TaskComplete"][1].matcher, "ask")

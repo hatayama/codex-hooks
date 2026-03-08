@@ -62,18 +62,32 @@ def parse_hooks_section(raw_hooks: dict[str, Any]) -> dict[str, tuple[HookGroup,
     return parsed
 
 
+def extend_unique_groups(destination: list[HookGroup], groups: tuple[HookGroup, ...]) -> None:
+    for group in groups:
+        if group in destination:
+            continue
+        destination.append(group)
+
+
 def map_claude_hooks(raw_hooks: dict[str, Any]) -> dict[str, tuple[HookGroup, ...]]:
     parsed: dict[str, tuple[HookGroup, ...]] = parse_hooks_section(raw_hooks)
     mapped: dict[str, list[HookGroup]] = {
         event_name: [] for event_name in SUPPORTED_CODEX_EVENTS
     }
 
+    user_prompt_submit_groups: tuple[HookGroup, ...] = parsed.get("UserPromptSubmit", ())
+    pre_tool_use_groups: tuple[HookGroup, ...] = parsed.get("PreToolUse", ())
     stop_groups: tuple[HookGroup, ...] = parsed.get("Stop", ())
     notification_groups: tuple[HookGroup, ...] = parsed.get("Notification", ())
 
-    mapped["TaskComplete"].extend(stop_groups)
-    mapped["TurnAborted"].extend(stop_groups)
-    mapped["TaskComplete"].extend(group.with_matcher("ask") for group in notification_groups)
+    extend_unique_groups(mapped["TaskStarted"], user_prompt_submit_groups)
+    extend_unique_groups(mapped["TaskStarted"], pre_tool_use_groups)
+    extend_unique_groups(mapped["TaskComplete"], stop_groups)
+    extend_unique_groups(mapped["TurnAborted"], stop_groups)
+    extend_unique_groups(
+        mapped["TaskComplete"],
+        tuple(group.with_matcher("ask") for group in notification_groups),
+    )
 
     return {
         event_name: tuple(groups)
