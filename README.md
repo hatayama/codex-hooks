@@ -233,6 +233,24 @@ Each hook command receives JSON on stdin:
 }
 ```
 
+## Consumer Contract
+
+Projects that provide hook commands for `codex-hooks` may rely on the following behavior:
+
+- `codex-hooks` loads hooks from `~/.codex/hooks.json` first.
+- If that file does not exist, it falls back to `~/.claude/settings.json`.
+- `codex-hooks` currently fires only these normalized events: `TaskStarted`, `TaskComplete`, and `TurnAborted`.
+- Supported matchers are `TaskStarted: ""`, `TaskComplete: "" | done | ask`, and `TurnAborted: "" | aborted`.
+- Hook commands are executed through `/bin/sh -lc`.
+- Each hook command receives normalized JSON on stdin with these stable fields: `event_name`, `matched_matcher`, `session_path`, `cwd`, `turn_id`, `assistant_message`, and `raw_event`.
+
+Projects must not rely on:
+
+- Claude's full hook response protocol.
+- Claude-specific stdin fields that are not listed above.
+- Internal Python modules, classes, or functions.
+- Full Claude matcher or lifecycle compatibility beyond the behavior documented in this README.
+
 ## Hook Protocol Limitations
 
 `codex-hooks` currently supports command execution, but not Claude's full hook control protocol.
