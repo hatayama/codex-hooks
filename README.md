@@ -277,6 +277,8 @@ As a result, direct shell hooks can be reused, but Claude hooks that depend on C
 python3 -m unittest
 ```
 
+The test suite includes a smoke test that runs `install.py` and `uninstall.py` against a clean temporary `HOME`, so CI verifies the install flow without relying on the maintainer's dotfiles.
+
 ## License
 
 MIT
