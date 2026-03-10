@@ -22,6 +22,7 @@ class TestRunner(unittest.TestCase):
             (
                 HookGroup(
                     matcher="done",
+                    source_hook_event_name="Stop",
                     hooks=(HookCommand(type="command", command="printf '%s' 'hello world'"),),
                 ),
             )
@@ -46,6 +47,7 @@ class TestRunner(unittest.TestCase):
             (
                 HookGroup(
                     matcher="ask",
+                    source_hook_event_name="Notification",
                     hooks=(HookCommand(type="command", command="cat"),),
                 ),
             )
@@ -63,15 +65,45 @@ class TestRunner(unittest.TestCase):
         results = fire_hooks(config, event)
         payload: dict = json.loads(results[0].stdout)
 
+        self.assertEqual(payload["hook_event_name"], "Notification")
+        self.assertEqual(payload["transcript_path"], "/tmp/session.jsonl")
+        self.assertEqual(payload["session_id"], "turn-2")
+        self.assertEqual(payload["message"], "Need confirmation?")
         self.assertEqual(payload["event_name"], "TaskComplete")
-        self.assertEqual(payload["matched_matcher"], "ask")
-        self.assertEqual(payload["turn_id"], "turn-2")
+
+    def test_stop_payload_uses_last_assistant_message_even_for_question_matcher(self) -> None:
+        config = self.build_config(
+            (
+                HookGroup(
+                    matcher="",
+                    source_hook_event_name="Stop",
+                    hooks=(HookCommand(type="command", command="cat"),),
+                ),
+            )
+        )
+        event = TriggeredEvent(
+            event_name="TaskComplete",
+            matcher="ask",
+            session_path="/tmp/session.jsonl",
+            cwd="/tmp",
+            turn_id="turn-9",
+            assistant_message="Need confirmation?",
+            raw_event={"type": "event_msg", "payload": {"type": "task_complete"}},
+        )
+
+        results = fire_hooks(config, event)
+        payload: dict = json.loads(results[0].stdout)
+
+        self.assertEqual(payload["hook_event_name"], "Stop")
+        self.assertEqual(payload["last_assistant_message"], "Need confirmation?")
+        self.assertNotIn("message", payload)
 
     def test_reports_failures_without_stopping_other_hooks(self) -> None:
         config = self.build_config(
             (
                 HookGroup(
                     matcher="done",
+                    source_hook_event_name="Stop",
                     hooks=(
                         HookCommand(type="command", command="exit 3"),
                         HookCommand(type="command", command="printf ok"),

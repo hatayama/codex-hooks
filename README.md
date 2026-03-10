@@ -224,12 +224,11 @@ Each hook command receives JSON on stdin:
 
 ```json
 {
-  "event_name": "TaskComplete",
-  "matched_matcher": "ask",
-  "session_path": "/Users/you/.codex/sessions/2026/03/07/session.jsonl",
+  "hook_event_name": "Notification",
+  "transcript_path": "/Users/you/.codex/sessions/2026/03/07/session.jsonl",
   "cwd": "/Users/you/work/repo",
-  "turn_id": "turn-12",
-  "assistant_message": "Do you want me to continue?",
+  "session_id": "turn-12",
+  "message": "Do you want me to continue?",
   "raw_event": {
     "type": "event_msg",
     "payload": {
@@ -248,7 +247,9 @@ Projects that provide hook commands for `codex-hooks` may rely on the following 
 - `codex-hooks` currently fires only these normalized events: `TaskStarted`, `TaskComplete`, and `TurnAborted`.
 - Supported matchers are `TaskStarted: ""`, `TaskComplete: "" | done | ask`, and `TurnAborted: "" | aborted`.
 - Hook commands are executed through `/bin/sh -lc`.
-- Each hook command receives normalized JSON on stdin with these stable fields: `event_name`, `matched_matcher`, `session_path`, `cwd`, `turn_id`, `assistant_message`, and `raw_event`.
+- Each hook command receives Claude-style JSON on stdin with these stable fields: `hook_event_name`, `transcript_path`, `cwd`, `session_id`, and `raw_event`.
+- `Stop` payloads include `last_assistant_message`, while `Notification` payloads include `message`.
+- Legacy compatibility aliases remain available for now: `event_name`, `matched_matcher`, `session_path`, `turn_id`, and `assistant_message`.
 
 Projects must not rely on:
 
@@ -261,7 +262,7 @@ Projects must not rely on:
 
 `codex-hooks` currently supports command execution, but not Claude's full hook control protocol.
 
-Each hook command receives normalized JSON on stdin, but Claude-specific hook fields are not provided. For example, fields such as `stop_hook_active` are not available unless `codex-hooks` explicitly implements them.
+Each hook command receives Claude-style JSON on stdin, but Claude-specific runtime fields are still incomplete. For example, fields such as `stop_hook_active` are not available unless `codex-hooks` explicitly implements them.
 
 Hook stdout is also not interpreted as Claude control output. If a hook prints JSON such as:
 

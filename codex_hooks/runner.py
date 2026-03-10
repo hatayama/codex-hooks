@@ -31,16 +31,36 @@ def group_matches(group: HookGroup, matcher: str) -> bool:
     return group.matcher == matcher
 
 
-def build_stdin_payload(event: TriggeredEvent) -> str:
+def default_hook_event_name(event: TriggeredEvent) -> str:
+    if event.event_name == "TaskStarted":
+        return "UserPromptSubmit"
+    if event.event_name == "TurnAborted":
+        return "Stop"
+    if event.event_name == "TaskComplete" and event.matcher == "ask":
+        return "Notification"
+    if event.event_name == "TaskComplete":
+        return "Stop"
+    return event.event_name
+
+
+def build_stdin_payload(event: TriggeredEvent, group: HookGroup) -> str:
+    hook_event_name: str = group.source_hook_event_name or default_hook_event_name(event)
     payload: dict[str, object] = {
+        "hook_event_name": hook_event_name,
+        "transcript_path": event.session_path,
+        "cwd": event.cwd,
+        "session_id": event.turn_id,
+        "raw_event": event.raw_event,
         "event_name": event.event_name,
         "matched_matcher": event.matcher,
         "session_path": event.session_path,
-        "cwd": event.cwd,
         "turn_id": event.turn_id,
         "assistant_message": event.assistant_message,
-        "raw_event": event.raw_event,
     }
+    if hook_event_name == "Notification":
+        payload["message"] = event.assistant_message
+    if hook_event_name == "Stop":
+        payload["last_assistant_message"] = event.assistant_message
     return json.dumps(payload)
 
 
@@ -82,11 +102,11 @@ def fire_hooks(config: ResolvedHooksConfig, event: TriggeredEvent) -> tuple[Hook
     if not groups:
         return ()
 
-    stdin_payload: str = build_stdin_payload(event)
     results: list[HookResult] = []
     for group in groups:
         if not group_matches(group, event.matcher):
             continue
+        stdin_payload: str = build_stdin_payload(event, group)
         results.extend(run_group(group, stdin_payload))
     return tuple(results)
 

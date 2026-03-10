@@ -20,9 +20,14 @@ class HookCommand:
 class HookGroup:
     matcher: str
     hooks: tuple[HookCommand, ...]
+    source_hook_event_name: str = ""
 
     def with_matcher(self, matcher: str) -> "HookGroup":
-        return HookGroup(matcher=matcher, hooks=self.hooks)
+        return HookGroup(
+            matcher=matcher,
+            hooks=self.hooks,
+            source_hook_event_name=self.source_hook_event_name,
+        )
 
 
 @dataclass(frozen=True)
@@ -44,33 +49,50 @@ def parse_command(data: dict[str, Any]) -> HookCommand:
     return HookCommand(type="command", command=command)
 
 
-def parse_group(data: dict[str, Any]) -> HookGroup:
+def parse_group(data: dict[str, Any], source_hook_event_name: str = "") -> HookGroup:
     matcher: Any = data.get("matcher", "")
     hooks_data: Any = data.get("hooks")
     assert isinstance(matcher, str), "Hook matcher must be a string"
     assert isinstance(hooks_data, list), "Hook group must contain a hooks list"
     hooks: tuple[HookCommand, ...] = tuple(parse_command(item) for item in hooks_data)
-    return HookGroup(matcher=matcher, hooks=hooks)
+    return HookGroup(
+        matcher=matcher,
+        hooks=hooks,
+        source_hook_event_name=source_hook_event_name,
+    )
 
 
-def parse_hooks_section(raw_hooks: dict[str, Any]) -> dict[str, tuple[HookGroup, ...]]:
+def parse_hooks_section(
+    raw_hooks: dict[str, Any],
+    preserve_source_event_name: bool = False,
+) -> dict[str, tuple[HookGroup, ...]]:
     parsed: dict[str, tuple[HookGroup, ...]] = {}
     for event_name, groups_data in raw_hooks.items():
         assert isinstance(event_name, str), "Hook event name must be a string"
         assert isinstance(groups_data, list), "Hook event value must be a list"
-        parsed[event_name] = tuple(parse_group(item) for item in groups_data)
+        source_hook_event_name: str = event_name if preserve_source_event_name else ""
+        parsed[event_name] = tuple(
+            parse_group(item, source_hook_event_name=source_hook_event_name)
+            for item in groups_data
+        )
     return parsed
 
 
 def extend_unique_groups(destination: list[HookGroup], groups: tuple[HookGroup, ...]) -> None:
     for group in groups:
-        if group in destination:
+        if any(
+            existing.matcher == group.matcher and existing.hooks == group.hooks
+            for existing in destination
+        ):
             continue
         destination.append(group)
 
 
 def map_claude_hooks(raw_hooks: dict[str, Any]) -> dict[str, tuple[HookGroup, ...]]:
-    parsed: dict[str, tuple[HookGroup, ...]] = parse_hooks_section(raw_hooks)
+    parsed: dict[str, tuple[HookGroup, ...]] = parse_hooks_section(
+        raw_hooks,
+        preserve_source_event_name=True,
+    )
     mapped: dict[str, list[HookGroup]] = {
         event_name: [] for event_name in SUPPORTED_CODEX_EVENTS
     }
