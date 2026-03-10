@@ -208,7 +208,13 @@ Existing `Notification` matchers in Claude settings do not have a direct Codex e
 The `ask` matcher is currently selected when the final assistant message:
 
 - Ends with `?` or `？`
-- Contains numbered options such as `1.` and `2.`
+- Ends with an option block such as:
+  - `Choose one` followed by `1. ...` and `2. ...`
+  - `Choose one:` followed by `1) ...` and `2) ...`
+  - `Options:` followed by `- ...` and `- ...`
+  - `次から選んでください：` followed by `1. ...` and `2. ...`
+
+Trailing recommendation lines such as `I recommend 1.` are also treated as part of the same question when they appear after the option block.
 
 This makes the behavior similar in common cases, but not identical to Claude Code.
 

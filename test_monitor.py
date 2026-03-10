@@ -143,6 +143,26 @@ class TestMonitor(unittest.TestCase):
         self.assertEqual(triggered_event.event_name, "TaskComplete")
         self.assertEqual(triggered_event.matcher, "ask")
 
+    def test_task_complete_uses_question_matcher_for_options_with_recommendation(self) -> None:
+        state: MonitorState = MonitorState(self.config, self.cwd, "/tmp/session.jsonl")
+        event: dict = {
+            "type": "event_msg",
+            "payload": {
+                "type": "task_complete",
+                "turn_id": "turn-6",
+                "last_agent_message": "Choose one\n1) Continue with the patch\n2) Stop here\nI recommend 1.",
+            },
+        }
+
+        with patch("codex_hooks.monitor.fire_hooks", return_value=()) as fire_mock, patch(
+            "codex_hooks.monitor.report_failures"
+        ):
+            state.handle_event(event)
+
+        triggered_event = fire_mock.call_args.args[1]
+        self.assertEqual(triggered_event.event_name, "TaskComplete")
+        self.assertEqual(triggered_event.matcher, "ask")
+
     def test_task_started_maps_to_task_started_event(self) -> None:
         state: MonitorState = MonitorState(self.config, self.cwd, "/tmp/session.jsonl")
         event: dict = {

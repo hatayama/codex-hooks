@@ -1,6 +1,8 @@
 import re
 
-NUMBERED_OPTION_PATTERN = re.compile(r"^\d+\.\s")
+OPTION_LINE_PATTERN = re.compile(r"^(?:\d+[.)]|[-*])\s")
+QUESTION_ENDING = ("?", "？")
+MAX_TRAILING_SUPPLEMENTAL_LINES = 2
 
 
 def extract_output_text(payload: dict) -> str:
@@ -28,22 +30,43 @@ def normalize_lines(message: str) -> list[str]:
     return lines
 
 
-def ends_with_numbered_options(lines: list[str]) -> bool:
-    option_start_index: int = len(lines)
-    index: int = len(lines) - 1
+def is_option_line(line: str) -> bool:
+    return OPTION_LINE_PATTERN.match(line) is not None
 
-    while index >= 0:
-        if not NUMBERED_OPTION_PATTERN.match(lines[index]):
-            break
-        option_start_index = index
+
+def find_option_block_end(lines: list[str]) -> int:
+    index: int = len(lines) - 1
+    supplemental_lines: int = 0
+
+    while index >= 0 and not is_option_line(lines[index]):
+        supplemental_lines += 1
+        if supplemental_lines > MAX_TRAILING_SUPPLEMENTAL_LINES:
+            return -1
         index -= 1
 
-    if option_start_index == len(lines):
-        return False
-    if option_start_index == 0:
+    return index
+
+
+def ends_with_options(lines: list[str]) -> bool:
+    option_end_index: int = find_option_block_end(lines)
+    if option_end_index < 0:
         return False
 
-    return lines[option_start_index - 1].endswith(":")
+    option_start_index: int = option_end_index
+    while option_start_index >= 0 and is_option_line(lines[option_start_index]):
+        option_start_index -= 1
+
+    option_count: int = option_end_index - option_start_index
+    if option_count < 2:
+        return False
+
+    intro_index: int = option_start_index
+    if intro_index < 0:
+        return False
+    if is_option_line(lines[intro_index]):
+        return False
+
+    return True
 
 
 def looks_like_question(message: str) -> bool:
@@ -55,10 +78,10 @@ def looks_like_question(message: str) -> bool:
         return False
 
     last_line: str = lines[-1]
-    if last_line.endswith(("?", "？")):
+    if last_line.endswith(QUESTION_ENDING):
         return True
 
-    if ends_with_numbered_options(lines):
+    if ends_with_options(lines):
         return True
 
     return False
