@@ -227,7 +227,7 @@ Each hook command receives JSON on stdin:
   "hook_event_name": "Notification",
   "transcript_path": "/Users/you/.codex/sessions/2026/03/07/session.jsonl",
   "cwd": "/Users/you/work/repo",
-  "session_id": "turn-12",
+  "session_id": "session-abc123",
   "message": "Do you want me to continue?",
   "raw_event": {
     "type": "event_msg",
@@ -248,6 +248,7 @@ Projects that provide hook commands for `codex-hooks` may rely on the following 
 - Supported matchers are `TaskStarted: ""`, `TaskComplete: "" | done | ask`, and `TurnAborted: "" | aborted`.
 - Hook commands are executed through `/bin/sh -lc`.
 - Each hook command receives Claude-style JSON on stdin with these stable fields: `hook_event_name`, `transcript_path`, `cwd`, `session_id`, and `raw_event`.
+- `session_id` is sourced from `session_meta.payload.id`, so it remains stable across turns within the same transcript.
 - `Stop` payloads include `last_assistant_message`, while `Notification` payloads include `message`.
 - Legacy compatibility aliases remain available for now: `event_name`, `matched_matcher`, `session_path`, `turn_id`, and `assistant_message`.
 

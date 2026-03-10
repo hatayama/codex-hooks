@@ -11,6 +11,7 @@ class TriggeredEvent:
     event_name: str
     matcher: str
     session_path: str
+    session_id: str
     cwd: str
     turn_id: str
     assistant_message: str
@@ -49,7 +50,7 @@ def build_stdin_payload(event: TriggeredEvent, group: HookGroup) -> str:
         "hook_event_name": hook_event_name,
         "transcript_path": event.session_path,
         "cwd": event.cwd,
-        "session_id": event.turn_id,
+        "session_id": event.session_id,
         "raw_event": event.raw_event,
         "event_name": event.event_name,
         "matched_matcher": event.matcher,

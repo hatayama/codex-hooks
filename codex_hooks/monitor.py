@@ -64,6 +64,7 @@ def load_session_meta(path: Path) -> dict | None:
 @dataclass(frozen=True)
 class SessionFileMatch:
     path: Path
+    session_id: str
     initial_offset: int
     meta_ts: float
     last_modified_ts: float
@@ -78,6 +79,9 @@ def build_session_match(path: Path, launch_ts: float, cwd: str) -> SessionFileMa
     meta_cwd: str = meta.get("cwd", "")
     if not meta_cwd or not paths_match(meta_cwd, cwd):
         return None
+    session_id: str = meta.get("id", "")
+    if not session_id:
+        session_id = str(path)
 
     timestamp: str = meta.get("timestamp", "")
     if not timestamp:
@@ -92,6 +96,7 @@ def build_session_match(path: Path, launch_ts: float, cwd: str) -> SessionFileMa
 
     return SessionFileMatch(
         path=path,
+        session_id=session_id,
         initial_offset=initial_offset,
         meta_ts=meta_ts,
         last_modified_ts=stat_result.st_mtime,
@@ -166,6 +171,7 @@ class MonitorState:
     config: ResolvedHooksConfig
     cwd: str
     session_path: str
+    session_id: str
     last_assistant_message: str = ""
     last_event_at: float = 0.0
     seen_terminal_events: set[tuple[str, str]] = field(default_factory=set)
@@ -200,6 +206,7 @@ class MonitorState:
                 event_name="TaskStarted",
                 matcher="",
                 session_path=self.session_path,
+                session_id=self.session_id,
                 cwd=self.cwd,
                 turn_id=turn_id,
                 assistant_message="",
@@ -211,6 +218,7 @@ class MonitorState:
                 event_name="TurnAborted",
                 matcher="aborted",
                 session_path=self.session_path,
+                session_id=self.session_id,
                 cwd=self.cwd,
                 turn_id=turn_id,
                 assistant_message="",
@@ -226,6 +234,7 @@ class MonitorState:
             event_name="TaskComplete",
             matcher=matcher,
             session_path=self.session_path,
+            session_id=self.session_id,
             cwd=self.cwd,
             turn_id=turn_id,
             assistant_message=message,
@@ -276,6 +285,7 @@ def main() -> None:
                     config=config,
                     cwd=args.cwd,
                     session_path=str(match.path),
+                    session_id=match.session_id,
                     last_event_at=args.launch_ts,
                 )
                 continue

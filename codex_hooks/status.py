@@ -1,8 +1,13 @@
 import re
 
 OPTION_LINE_PATTERN = re.compile(r"^(?:\d+[.)]|[-*])\s")
+OPTION_INTRO_PATTERN = re.compile(
+    r"\b(?:choose|select|pick)\b|\boptions?\b|\balternatives?\b",
+    re.IGNORECASE,
+)
 QUESTION_ENDING = ("?", "？")
 MAX_TRAILING_SUPPLEMENTAL_LINES = 2
+JAPANESE_OPTION_INTRO_MARKERS = ("選んで", "選択", "オプション")
 
 
 def extract_output_text(payload: dict) -> str:
@@ -32,6 +37,12 @@ def normalize_lines(message: str) -> list[str]:
 
 def is_option_line(line: str) -> bool:
     return OPTION_LINE_PATTERN.match(line) is not None
+
+
+def is_option_intro_line(line: str) -> bool:
+    if OPTION_INTRO_PATTERN.search(line) is not None:
+        return True
+    return any(marker in line for marker in JAPANESE_OPTION_INTRO_MARKERS)
 
 
 def find_option_block_end(lines: list[str]) -> int:
@@ -64,6 +75,8 @@ def ends_with_options(lines: list[str]) -> bool:
     if intro_index < 0:
         return False
     if is_option_line(lines[intro_index]):
+        return False
+    if not is_option_intro_line(lines[intro_index]):
         return False
 
     return True

@@ -36,6 +36,10 @@ class TestStatus(unittest.TestCase):
         message: str = "次から選んでください\n- 続ける\n- 止める\nおすすめは 2 です。"
         self.assertTrue(looks_like_question(message))
 
+    def test_ignores_summary_heading_with_bulleted_completion(self) -> None:
+        message: str = "Summary:\n- fixed A\n- added B"
+        self.assertFalse(looks_like_question(message))
+
     def test_ignores_plain_bulleted_completion(self) -> None:
         message: str = "- Implemented A\n- Added B"
         self.assertFalse(looks_like_question(message))

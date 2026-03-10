@@ -31,6 +31,7 @@ class TestRunner(unittest.TestCase):
             event_name="TaskComplete",
             matcher="done",
             session_path="/tmp/session.jsonl",
+            session_id="session-1",
             cwd="/tmp",
             turn_id="turn-1",
             assistant_message="done",
@@ -56,6 +57,7 @@ class TestRunner(unittest.TestCase):
             event_name="TaskComplete",
             matcher="ask",
             session_path="/tmp/session.jsonl",
+            session_id="session-2",
             cwd="/tmp",
             turn_id="turn-2",
             assistant_message="Need confirmation?",
@@ -67,7 +69,7 @@ class TestRunner(unittest.TestCase):
 
         self.assertEqual(payload["hook_event_name"], "Notification")
         self.assertEqual(payload["transcript_path"], "/tmp/session.jsonl")
-        self.assertEqual(payload["session_id"], "turn-2")
+        self.assertEqual(payload["session_id"], "session-2")
         self.assertEqual(payload["message"], "Need confirmation?")
         self.assertEqual(payload["event_name"], "TaskComplete")
 
@@ -85,6 +87,7 @@ class TestRunner(unittest.TestCase):
             event_name="TaskComplete",
             matcher="ask",
             session_path="/tmp/session.jsonl",
+            session_id="session-9",
             cwd="/tmp",
             turn_id="turn-9",
             assistant_message="Need confirmation?",
@@ -95,6 +98,7 @@ class TestRunner(unittest.TestCase):
         payload: dict = json.loads(results[0].stdout)
 
         self.assertEqual(payload["hook_event_name"], "Stop")
+        self.assertEqual(payload["session_id"], "session-9")
         self.assertEqual(payload["last_assistant_message"], "Need confirmation?")
         self.assertNotIn("message", payload)
 
@@ -115,6 +119,7 @@ class TestRunner(unittest.TestCase):
             event_name="TaskComplete",
             matcher="done",
             session_path="/tmp/session.jsonl",
+            session_id="session-3",
             cwd="/tmp",
             turn_id="turn-3",
             assistant_message="done",
