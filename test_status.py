@@ -44,6 +44,14 @@ class TestStatus(unittest.TestCase):
         message: str = "- Implemented A\n- Added B"
         self.assertFalse(looks_like_question(message))
 
+    def test_rejects_options_followed_by_plain_statement(self) -> None:
+        message: str = "Options:\n- A\n- B\nImplemented A."
+        self.assertFalse(looks_like_question(message))
+
+    def test_rejects_numbered_options_followed_by_thanks(self) -> None:
+        message: str = "Choose one:\n1) A\n2) B\nThanks!"
+        self.assertFalse(looks_like_question(message))
+
     def test_returns_done_for_plain_completion(self) -> None:
         self.assertEqual(completion_matcher("Finished the implementation."), "done")
 

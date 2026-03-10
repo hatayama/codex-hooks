@@ -5,6 +5,11 @@ OPTION_INTRO_PATTERN = re.compile(
     r"\b(?:choose|select|pick)\b|\boptions?\b|\balternatives?\b",
     re.IGNORECASE,
 )
+RECOMMENDATION_PATTERN = re.compile(
+    r"^(?:i\s+(?:recommend|suggest)|my recommendation|recommended)",
+    re.IGNORECASE,
+)
+JAPANESE_RECOMMENDATION_MARKERS = ("おすすめ", "推奨")
 QUESTION_ENDING = ("?", "？")
 MAX_TRAILING_SUPPLEMENTAL_LINES = 2
 JAPANESE_OPTION_INTRO_MARKERS = ("選んで", "選択", "オプション")
@@ -39,6 +44,12 @@ def is_option_line(line: str) -> bool:
     return OPTION_LINE_PATTERN.match(line) is not None
 
 
+def is_recommendation_line(line: str) -> bool:
+    if RECOMMENDATION_PATTERN.match(line) is not None:
+        return True
+    return any(line.startswith(marker) for marker in JAPANESE_RECOMMENDATION_MARKERS)
+
+
 def is_option_intro_line(line: str) -> bool:
     if OPTION_INTRO_PATTERN.search(line) is not None:
         return True
@@ -50,6 +61,8 @@ def find_option_block_end(lines: list[str]) -> int:
     supplemental_lines: int = 0
 
     while index >= 0 and not is_option_line(lines[index]):
+        if not is_recommendation_line(lines[index]):
+            return -1
         supplemental_lines += 1
         if supplemental_lines > MAX_TRAILING_SUPPLEMENTAL_LINES:
             return -1
