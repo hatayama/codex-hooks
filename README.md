@@ -234,16 +234,9 @@ Each hook command receives JSON on stdin:
     "payload": {
       "type": "task_complete"
     }
-  },
-  "event_name": "TaskComplete",
-  "matched_matcher": "ask",
-  "session_path": "/Users/you/.codex/sessions/2026/03/07/session.jsonl",
-  "turn_id": "turn-12",
-  "assistant_message": "Do you want me to continue?"
+  }
 }
 ```
-
-The top-level fields (`hook_event_name`, `transcript_path`, `session_id`, etc.) follow the Claude Code payload convention. The bottom fields (`event_name`, `matched_matcher`, `session_path`, `turn_id`, `assistant_message`) are legacy compatibility aliases that remain available for now.
 
 ### Unsupported Claude Code Payload Fields
 
@@ -267,8 +260,6 @@ Projects that provide hook commands for `codex-hooks` may rely on the following 
 - Each hook command receives Claude-style JSON on stdin with these stable fields: `hook_event_name`, `transcript_path`, `cwd`, `session_id`, and `raw_event`.
 - `session_id` is sourced from `session_meta.payload.id`, so it remains stable across turns within the same transcript.
 - `Stop` payloads include `last_assistant_message`, while `Notification` payloads include `message`.
-- Legacy compatibility aliases remain available for now: `event_name`, `matched_matcher`, `session_path`, `turn_id`, and `assistant_message`.
-
 Projects must not rely on:
 
 - Claude's full hook response protocol.

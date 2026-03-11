@@ -71,7 +71,9 @@ class TestRunner(unittest.TestCase):
         self.assertEqual(payload["transcript_path"], "/tmp/session.jsonl")
         self.assertEqual(payload["session_id"], "session-2")
         self.assertEqual(payload["message"], "Need confirmation?")
-        self.assertEqual(payload["event_name"], "TaskComplete")
+        self.assertNotIn("event_name", payload)
+        self.assertNotIn("matched_matcher", payload)
+        self.assertNotIn("assistant_message", payload)
 
     def test_stop_payload_uses_last_assistant_message_even_for_question_matcher(self) -> None:
         config = self.build_config(

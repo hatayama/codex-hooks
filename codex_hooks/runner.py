@@ -52,11 +52,6 @@ def build_stdin_payload(event: TriggeredEvent, group: HookGroup) -> str:
         "cwd": event.cwd,
         "session_id": event.session_id,
         "raw_event": event.raw_event,
-        "event_name": event.event_name,
-        "matched_matcher": event.matcher,
-        "session_path": event.session_path,
-        "turn_id": event.turn_id,
-        "assistant_message": event.assistant_message,
     }
     if hook_event_name == "Notification":
         payload["message"] = event.assistant_message
