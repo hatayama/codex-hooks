@@ -234,9 +234,16 @@ Each hook command receives JSON on stdin:
     "payload": {
       "type": "task_complete"
     }
-  }
+  },
+  "event_name": "TaskComplete",
+  "matched_matcher": "ask",
+  "session_path": "/Users/you/.codex/sessions/2026/03/07/session.jsonl",
+  "turn_id": "turn-12",
+  "assistant_message": "Do you want me to continue?"
 }
 ```
+
+The top-level fields (`hook_event_name`, `transcript_path`, `session_id`, etc.) follow the Claude Code payload convention. The bottom fields (`event_name`, `matched_matcher`, `session_path`, `turn_id`, `assistant_message`) are legacy compatibility aliases that remain available for now.
 
 ## Consumer Contract
 
