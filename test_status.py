@@ -36,6 +36,14 @@ class TestStatus(unittest.TestCase):
         message: str = "次から選んでください\n- 続ける\n- 止める\nおすすめは 2 です。"
         self.assertTrue(looks_like_question(message))
 
+    def test_detects_question_form_intro_with_options(self) -> None:
+        message: str = "Which approach should I take?\n1. Approach A\n2. Approach B"
+        self.assertTrue(looks_like_question(message))
+
+    def test_detects_japanese_question_form_intro_with_options(self) -> None:
+        message: str = "どちらにしますか？\n1. 続ける\n2. 止める"
+        self.assertTrue(looks_like_question(message))
+
     def test_ignores_summary_heading_with_bulleted_completion(self) -> None:
         message: str = "Summary:\n- fixed A\n- added B"
         self.assertFalse(looks_like_question(message))

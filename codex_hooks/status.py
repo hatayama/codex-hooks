@@ -90,7 +90,8 @@ def ends_with_options(lines: list[str]) -> bool:
     if is_option_line(lines[intro_index]):
         return False
     if not is_option_intro_line(lines[intro_index]):
-        return False
+        if not lines[intro_index].endswith(QUESTION_ENDING):
+            return False
 
     return True
 
