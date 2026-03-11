@@ -1,6 +1,18 @@
 import re
 
-NUMBERED_OPTION_PATTERN = re.compile(r"^\d+\.\s")
+OPTION_LINE_PATTERN = re.compile(r"^(?:\d+[.)]|[-*])\s")
+OPTION_INTRO_PATTERN = re.compile(
+    r"\b(?:choose|select|pick)\b|\boptions?\b|\balternatives?\b",
+    re.IGNORECASE,
+)
+RECOMMENDATION_PATTERN = re.compile(
+    r"^(?:i\s+(?:recommend|suggest)|my recommendation|recommended)",
+    re.IGNORECASE,
+)
+JAPANESE_RECOMMENDATION_MARKERS = ("おすすめ", "推奨")
+QUESTION_ENDING = ("?", "？")
+MAX_TRAILING_SUPPLEMENTAL_LINES = 2
+JAPANESE_OPTION_INTRO_MARKERS = ("選んで", "選択", "オプション")
 
 
 def extract_output_text(payload: dict) -> str:
@@ -28,22 +40,60 @@ def normalize_lines(message: str) -> list[str]:
     return lines
 
 
-def ends_with_numbered_options(lines: list[str]) -> bool:
-    option_start_index: int = len(lines)
-    index: int = len(lines) - 1
+def is_option_line(line: str) -> bool:
+    return OPTION_LINE_PATTERN.match(line) is not None
 
-    while index >= 0:
-        if not NUMBERED_OPTION_PATTERN.match(lines[index]):
-            break
-        option_start_index = index
+
+def is_recommendation_line(line: str) -> bool:
+    if RECOMMENDATION_PATTERN.match(line) is not None:
+        return True
+    return any(line.startswith(marker) for marker in JAPANESE_RECOMMENDATION_MARKERS)
+
+
+def is_option_intro_line(line: str) -> bool:
+    if OPTION_INTRO_PATTERN.search(line) is not None:
+        return True
+    return any(marker in line for marker in JAPANESE_OPTION_INTRO_MARKERS)
+
+
+def find_option_block_end(lines: list[str]) -> int:
+    index: int = len(lines) - 1
+    supplemental_lines: int = 0
+
+    while index >= 0 and not is_option_line(lines[index]):
+        if not is_recommendation_line(lines[index]):
+            return -1
+        supplemental_lines += 1
+        if supplemental_lines > MAX_TRAILING_SUPPLEMENTAL_LINES:
+            return -1
         index -= 1
 
-    if option_start_index == len(lines):
-        return False
-    if option_start_index == 0:
+    return index
+
+
+def ends_with_options(lines: list[str]) -> bool:
+    option_end_index: int = find_option_block_end(lines)
+    if option_end_index < 0:
         return False
 
-    return lines[option_start_index - 1].endswith(":")
+    option_start_index: int = option_end_index
+    while option_start_index >= 0 and is_option_line(lines[option_start_index]):
+        option_start_index -= 1
+
+    option_count: int = option_end_index - option_start_index
+    if option_count < 2:
+        return False
+
+    intro_index: int = option_start_index
+    if intro_index < 0:
+        return False
+    if is_option_line(lines[intro_index]):
+        return False
+    if not is_option_intro_line(lines[intro_index]):
+        if not lines[intro_index].endswith(QUESTION_ENDING):
+            return False
+
+    return True
 
 
 def looks_like_question(message: str) -> bool:
@@ -55,10 +105,10 @@ def looks_like_question(message: str) -> bool:
         return False
 
     last_line: str = lines[-1]
-    if last_line.endswith(("?", "？")):
+    if last_line.endswith(QUESTION_ENDING):
         return True
 
-    if ends_with_numbered_options(lines):
+    if ends_with_options(lines):
         return True
 
     return False

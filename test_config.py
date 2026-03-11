@@ -52,6 +52,7 @@ class TestConfig(unittest.TestCase):
         self.assertIn("TaskComplete", config.hooks)
         self.assertNotIn("TurnAborted", config.hooks)
         self.assertEqual(config.hooks["TaskComplete"][0].hooks[0].command, "printf codex")
+        self.assertEqual(config.hooks["TaskComplete"][0].source_hook_event_name, "")
 
     def test_maps_claude_hooks_to_task_started_complete_and_abort(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -105,10 +106,14 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(config.source_kind, "claude")
         self.assertEqual(len(config.hooks["TaskStarted"]), 1)
         self.assertEqual(config.hooks["TaskStarted"][0].hooks[0].command, "printf on")
+        self.assertEqual(config.hooks["TaskStarted"][0].source_hook_event_name, "UserPromptSubmit")
         self.assertEqual(len(config.hooks["TaskComplete"]), 2)
         self.assertEqual(config.hooks["TaskComplete"][0].matcher, "")
+        self.assertEqual(config.hooks["TaskComplete"][0].source_hook_event_name, "Stop")
         self.assertEqual(config.hooks["TaskComplete"][1].matcher, "ask")
+        self.assertEqual(config.hooks["TaskComplete"][1].source_hook_event_name, "Notification")
         self.assertEqual(config.hooks["TurnAborted"][0].matcher, "")
+        self.assertEqual(config.hooks["TurnAborted"][0].source_hook_event_name, "Stop")
 
 
 if __name__ == "__main__":

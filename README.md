@@ -208,7 +208,13 @@ Existing `Notification` matchers in Claude settings do not have a direct Codex e
 The `ask` matcher is currently selected when the final assistant message:
 
 - Ends with `?` or `？`
-- Contains numbered options such as `1.` and `2.`
+- Ends with an option block such as:
+  - `Choose one` followed by `1. ...` and `2. ...`
+  - `Choose one:` followed by `1) ...` and `2) ...`
+  - `Options:` followed by `- ...` and `- ...`
+  - `次から選んでください：` followed by `1. ...` and `2. ...`
+
+Trailing recommendation lines such as `I recommend 1.` are also treated as part of the same question when they appear after the option block.
 
 This makes the behavior similar in common cases, but not identical to Claude Code.
 
@@ -218,12 +224,11 @@ Each hook command receives JSON on stdin:
 
 ```json
 {
-  "event_name": "TaskComplete",
-  "matched_matcher": "ask",
-  "session_path": "/Users/you/.codex/sessions/2026/03/07/session.jsonl",
+  "hook_event_name": "Notification",
+  "transcript_path": "/Users/you/.codex/sessions/2026/03/07/session.jsonl",
   "cwd": "/Users/you/work/repo",
-  "turn_id": "turn-12",
-  "assistant_message": "Do you want me to continue?",
+  "session_id": "session-abc123",
+  "message": "Do you want me to continue?",
   "raw_event": {
     "type": "event_msg",
     "payload": {
@@ -242,7 +247,10 @@ Projects that provide hook commands for `codex-hooks` may rely on the following 
 - `codex-hooks` currently fires only these normalized events: `TaskStarted`, `TaskComplete`, and `TurnAborted`.
 - Supported matchers are `TaskStarted: ""`, `TaskComplete: "" | done | ask`, and `TurnAborted: "" | aborted`.
 - Hook commands are executed through `/bin/sh -lc`.
-- Each hook command receives normalized JSON on stdin with these stable fields: `event_name`, `matched_matcher`, `session_path`, `cwd`, `turn_id`, `assistant_message`, and `raw_event`.
+- Each hook command receives Claude-style JSON on stdin with these stable fields: `hook_event_name`, `transcript_path`, `cwd`, `session_id`, and `raw_event`.
+- `session_id` is sourced from `session_meta.payload.id`, so it remains stable across turns within the same transcript.
+- `Stop` payloads include `last_assistant_message`, while `Notification` payloads include `message`.
+- Legacy compatibility aliases remain available for now: `event_name`, `matched_matcher`, `session_path`, `turn_id`, and `assistant_message`.
 
 Projects must not rely on:
 
@@ -255,7 +263,7 @@ Projects must not rely on:
 
 `codex-hooks` currently supports command execution, but not Claude's full hook control protocol.
 
-Each hook command receives normalized JSON on stdin, but Claude-specific hook fields are not provided. For example, fields such as `stop_hook_active` are not available unless `codex-hooks` explicitly implements them.
+Each hook command receives Claude-style JSON on stdin, but Claude-specific runtime fields are still incomplete. For example, fields such as `stop_hook_active` are not available unless `codex-hooks` explicitly implements them.
 
 Hook stdout is also not interpreted as Claude control output. If a hook prints JSON such as:
 

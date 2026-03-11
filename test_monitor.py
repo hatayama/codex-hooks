@@ -33,6 +33,7 @@ class TestMonitor(unittest.TestCase):
         meta_timestamp: float,
         body_events: list[dict],
         modified_at: float,
+        session_id: str = "session-1",
     ) -> Path:
         path: Path = self.sessions_dir / name
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -40,6 +41,7 @@ class TestMonitor(unittest.TestCase):
             {
                 "type": "session_meta",
                 "payload": {
+                    "id": session_id,
                     "cwd": self.cwd,
                     "timestamp": self.iso(meta_timestamp),
                 },
@@ -110,7 +112,7 @@ class TestMonitor(unittest.TestCase):
             )
             file_handle.write("\n")
 
-        state: MonitorState = MonitorState(self.config, self.cwd, str(path))
+        state: MonitorState = MonitorState(self.config, self.cwd, str(path), "session-1")
         with patch("codex_hooks.monitor.fire_hooks", return_value=()) as fire_mock, patch(
             "codex_hooks.monitor.report_failures"
         ):
@@ -120,11 +122,12 @@ class TestMonitor(unittest.TestCase):
 
         self.assertEqual(len(events), 1)
         triggered_event = fire_mock.call_args.args[1]
+        self.assertEqual(triggered_event.session_id, "session-1")
         self.assertEqual(triggered_event.turn_id, "turn-2")
         self.assertEqual(triggered_event.matcher, "done")
 
     def test_task_complete_uses_question_matcher(self) -> None:
-        state: MonitorState = MonitorState(self.config, self.cwd, "/tmp/session.jsonl")
+        state: MonitorState = MonitorState(self.config, self.cwd, "/tmp/session.jsonl", "session-2")
         event: dict = {
             "type": "event_msg",
             "payload": {
@@ -142,9 +145,50 @@ class TestMonitor(unittest.TestCase):
         triggered_event = fire_mock.call_args.args[1]
         self.assertEqual(triggered_event.event_name, "TaskComplete")
         self.assertEqual(triggered_event.matcher, "ask")
+        self.assertEqual(triggered_event.session_id, "session-2")
+
+    def test_task_complete_uses_question_matcher_for_options_with_recommendation(self) -> None:
+        state: MonitorState = MonitorState(self.config, self.cwd, "/tmp/session.jsonl", "session-3")
+        event: dict = {
+            "type": "event_msg",
+            "payload": {
+                "type": "task_complete",
+                "turn_id": "turn-6",
+                "last_agent_message": "Choose one\n1) Continue with the patch\n2) Stop here\nI recommend 1.",
+            },
+        }
+
+        with patch("codex_hooks.monitor.fire_hooks", return_value=()) as fire_mock, patch(
+            "codex_hooks.monitor.report_failures"
+        ):
+            state.handle_event(event)
+
+        triggered_event = fire_mock.call_args.args[1]
+        self.assertEqual(triggered_event.event_name, "TaskComplete")
+        self.assertEqual(triggered_event.matcher, "ask")
+        self.assertEqual(triggered_event.session_id, "session-3")
+
+    def test_task_complete_does_not_treat_summary_list_as_question(self) -> None:
+        state: MonitorState = MonitorState(self.config, self.cwd, "/tmp/session.jsonl", "session-4")
+        event: dict = {
+            "type": "event_msg",
+            "payload": {
+                "type": "task_complete",
+                "turn_id": "turn-7",
+                "last_agent_message": "Summary:\n- fixed A\n- added B",
+            },
+        }
+
+        with patch("codex_hooks.monitor.fire_hooks", return_value=()) as fire_mock, patch(
+            "codex_hooks.monitor.report_failures"
+        ):
+            state.handle_event(event)
+
+        triggered_event = fire_mock.call_args.args[1]
+        self.assertEqual(triggered_event.matcher, "done")
 
     def test_task_started_maps_to_task_started_event(self) -> None:
-        state: MonitorState = MonitorState(self.config, self.cwd, "/tmp/session.jsonl")
+        state: MonitorState = MonitorState(self.config, self.cwd, "/tmp/session.jsonl", "session-5")
         event: dict = {
             "type": "event_msg",
             "payload": {
@@ -161,6 +205,7 @@ class TestMonitor(unittest.TestCase):
         triggered_event = fire_mock.call_args.args[1]
         self.assertEqual(triggered_event.event_name, "TaskStarted")
         self.assertEqual(triggered_event.matcher, "")
+        self.assertEqual(triggered_event.session_id, "session-5")
 
 
 if __name__ == "__main__":
