@@ -234,9 +234,26 @@ Each hook command receives JSON on stdin:
     "payload": {
       "type": "task_complete"
     }
-  }
+  },
+  "event_name": "TaskComplete",
+  "matched_matcher": "ask",
+  "session_path": "/Users/you/.codex/sessions/2026/03/07/session.jsonl",
+  "turn_id": "turn-12",
+  "assistant_message": "Do you want me to continue?"
 }
 ```
+
+The top-level fields (`hook_event_name`, `transcript_path`, `session_id`, etc.) follow the Claude Code payload convention. The bottom fields (`event_name`, `matched_matcher`, `session_path`, `turn_id`, `assistant_message`) are legacy compatibility aliases that remain available for now.
+
+### Unsupported Claude Code Payload Fields
+
+The following Claude Code stdin fields are **not available** because Codex CLI does not expose the underlying data:
+
+| Field | Claude Code Event | Reason |
+|-------|------------------|--------|
+| `permission_mode` | All events | Codex CLI does not have a permission mode concept |
+| `prompt` | UserPromptSubmit | Codex CLI `task_started` events do not include the user prompt text |
+| `stop_hook_active` | Stop | Runtime hook state is not tracked |
 
 ## Consumer Contract
 
@@ -263,7 +280,7 @@ Projects must not rely on:
 
 `codex-hooks` currently supports command execution, but not Claude's full hook control protocol.
 
-Each hook command receives Claude-style JSON on stdin, but Claude-specific runtime fields are still incomplete. For example, fields such as `stop_hook_active` are not available unless `codex-hooks` explicitly implements them.
+Each hook command receives Claude-style JSON on stdin, but some Claude Code fields are not available because Codex CLI does not expose the underlying data. See [Unsupported Claude Code Payload Fields](#unsupported-claude-code-payload-fields) for the full list.
 
 Hook stdout is also not interpreted as Claude control output. If a hook prints JSON such as:
 

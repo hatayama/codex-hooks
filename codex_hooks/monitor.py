@@ -1,6 +1,6 @@
 import argparse
 import json
-import subprocess
+import os
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -38,12 +38,15 @@ def paths_match(left: str, right: str) -> bool:
 def pid_is_alive(pid: int) -> bool:
     if pid <= 0:
         return False
-    completed: subprocess.CompletedProcess[bytes] = subprocess.run(
-        ["ps", "-p", str(pid)],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    return completed.returncode == 0
+    # os.kill with signal 0 avoids spawning external commands like `ps`,
+    # which are blocked inside the Codex sandbox.
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
 
 
 def load_session_meta(path: Path) -> dict | None:
